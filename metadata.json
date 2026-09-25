@@ -1,0 +1,10 @@
+{
+  "name": "CYBERQUIZ - Premium Cybersecurity Platform",
+  "description": "Premium cybersecurity learning platform combining interactive quizzes, RPG skill progression, simulated CLI labs, CTFs, and AI Mentoring.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
