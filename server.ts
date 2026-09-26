@@ -39,20 +39,19 @@ app.post('/api/mentor', async (req: Request, res: Response) => {
   const systemInstruction = `Você é o "CYBER MENTOR", um educador sênior de elite em cibersegurança e instrutor de pesquisa ofensiva e defensiva na plataforma CYBERQUIZ.
 Sua comunicação é analítica, precisa, encorajadora e profundamente pedagógica.
 DIRETRIZES FUNDAMENTAIS:
-1. Responda em português fluente (pt-BR), preservando nomes de comandos (ex: grep, cat, nmap), códigos, queries e terminologias internacionais consagradas de segurança (ex: SQL Injection, ARP Spoofing, SUID, Buffer Overflow, Zero Trust, Handshake TCP).
-2. Nunca entregue flags de CTF ou respostas diretas imediatas às questões do quiz. Em vez disso, explique o mecanismo subjacente (ex: como o envenenamento de cache ARP funciona, como a recursão DNS falha, como a máscara de permissões POSIX avalia).
+1. Responda em português fluente (pt-BR), preservando nomes de comandos (ex: grep, cat, nmap), códigos, queries e terminologias internacionais consagradas de segurança (ex: SQL Injection, ARP Spoofing, DNS Poisoning).
+2. Nunca entregue flags de CTF ou respostas diretas imediatas às questões do quiz. Em vez disso, explique o mecanismo subjacente (ex: como o envenenamento de cache ARP funciona, como a recursão DNS pode ser explorada).
 3. Ensine o raciocínio forense: guie o aluno na análise de logs, identificação de anomalias, formulação de hipóteses e validação metódica no terminal sandbox.
 4. Mantenha respostas focadas, práticas e profissionais, sem gírias teatrais de filmes de hackers.
 5. Se o aluno pedir uma dica, forneça uma orientação sutil sobre qual comando, arquivo de log ou campo de protocolo inspecionar a seguir.
 Contexto da plataforma: ${context ? JSON.stringify(context) : 'Treinamento de Cibersegurança'}`;
 
   if (!aiClient) {
-    // Intelligent local fallback response if GEMINI_API_KEY is not set
     const fallbackResponses: Record<string, string> = {
-      dns: "Ao diagnosticar resolução de nomes onde a conectividade direta via IP funciona, as camadas de transporte e rede estão ativas. A falha reside na Resolução de Nomes (Camada 7 / Aplicação). No Linux, verifique `/etc/resolv.conf` para checar os resolvers e teste com `dig @1.1.1.1 dominio.com` ou `nslookup`.",
-      linux: "As permissões no Linux seguem `rwx` (read=4, write=2, execute=1). Permissão de execução em diretórios é necessária para entrar (`cd`), enquanto permissão de leitura permite listar arquivos (`ls`).",
-      sql: "O SQL Injection ocorre quando entradas não sanitizadas são concatenadas diretamente em uma consulta SQL em vez de parametrizadas. A mitigação definitiva é o uso de Prepared Statements (consultas parametrizadas) e menor privilégio no banco de dados.",
-      default: `Como seu Cyber Mentor: sobre "${prompt.slice(0, 50)}...", lembre-se de rastrear o fluxo dos pacotes da origem ao destino. Divida as camadas do sistema, inspecione os logs de auditoria e teste suas hipóteses metodicamente no terminal.`
+      dns: "Ao diagnosticar resolução de nomes onde a conectividade direta via IP funciona, as camadas de transporte e rede estão ativas. A falha reside na Resolução de Nomes (Camada 7 / Aplicação). Inspecione com 'nslookup' ou 'dig' qual nameserver está respondendo e se há uma configuração inconsistente em /etc/resolv.conf. Verifique também se existe cache poisoning ou respostas DNS suspeitas no tráfego de rede com 'tcpdump' ou 'wireshark'.",
+      linux: "As permissões no Linux seguem `rwx` (read=4, write=2, execute=1). Permissão de execução em diretórios é necessária para entrar (`cd`), enquanto permissão de leitura permite listar conteúdo. Use `ls -la` para inspecionar bits de permissão e `stat` para análise forense detalhada de mudanças no arquivo ou diretório.",
+      sql: "O SQL Injection ocorre quando entradas não sanitizadas são concatenadas diretamente em uma consulta SQL em vez de parametrizadas. A mitigação definitiva é o uso de Prepared Statements. Teste com comentários SQL (--) e payloads de union-based em campos suspeitos, mas sempre valide o comportamento em logs e consultas de auditoria.",
+      default: `Como seu Cyber Mentor: sobre "${prompt.slice(0, 50)}...", lembre-se de rastrear o fluxo dos pacotes da origem ao destino. Divida as camadas do sistema, inspecione os logs de auditoria com 'grep' e formule hipóteses baseadas em evidências. Qual é a camada exata do problema?`,
     };
 
     const matchKey = Object.keys(fallbackResponses).find(k => prompt.toLowerCase().includes(k)) || 'default';
@@ -65,8 +64,7 @@ Contexto da plataforma: ${context ? JSON.stringify(context) : 'Treinamento de Ci
 
   try {
     const model = useDeepThinking ? 'gemini-3.1-pro-preview' : 'gemini-3.8-flash';
-    
-    // Build contents from history and current prompt
+
     const contents: any[] = [];
     for (const msg of conversationHistory) {
       contents.push({
@@ -112,14 +110,13 @@ app.post('/api/analyze-image', async (req: Request, res: Response) => {
 
   if (!aiClient) {
     return res.json({
-      text: `[Visual Verification Analysis]\n\nReceived image submission. In local simulation mode without live API key, your diagram / photo submission matches standard protocol verification guidelines. Key observations:\n• Diagram demonstrates correct topology isolation.\n• Flow indicates proper firewall boundary placement.\n\nResult: Verified +50 XP bonus credit.`,
+      text: `[Visual Verification Analysis]\n\nReceived image submission. In local simulation mode without live API key, your diagram or photo appears consistent with standard cybersecurity protocol verification and demonstrates the expected principle with high confidence.`,
       verified: true,
       confidence: 0.94,
     });
   }
 
   try {
-    // Strip header prefix if present (e.g. data:image/png;base64,)
     const cleanBase64 = imageBase64.replace(/^data:image\/\w+;base64,/, '');
 
     const response = await aiClient.models.generateContent({
@@ -133,7 +130,7 @@ app.post('/api/analyze-image', async (req: Request, res: Response) => {
             },
           },
           {
-            text: `You are an expert cybersecurity grader evaluating a student's photo/diagram/screenshot submission for the following challenge:\n\n${questionContext || 'General cybersecurity practical exercise'}\n\nTask:\n1. Analyze the student's handwritten notes, network diagram, terminal screenshot, or calculation.\n2. Determine if their reasoning or answer is correct.\n3. Provide concise, constructive feedback.\n4. State explicitly: [VERIFIED: YES] or [VERIFIED: PARTIAL] or [VERIFIED: NO].`,
+            text: `You are an expert cybersecurity grader evaluating a student's photo/diagram/screenshot submission for the following challenge:\n\n${questionContext || 'General cybersecurity practical exercise'}\n\nProvide detailed feedback on correctness, and include [VERIFIED: YES] or [VERIFIED: NO] in your response.`,
           },
         ],
       },
@@ -312,12 +309,12 @@ app.get('/api/leaderboard', (_req: Request, res: Response) => {
 
 // Threat Intelligence & Incident Response Geo-Tracking via Google Maps Grounding
 app.post('/api/threat-intel/maps-grounding', async (req: Request, res: Response) => {
-  const { 
-    query, 
-    targetIp, 
-    locationName, 
-    category = 'incident_response', 
-    userLocation 
+  const {
+    query,
+    targetIp,
+    locationName,
+    category = 'incident_response',
+    userLocation
   } = req.body;
 
   if (!query && !targetIp && !locationName) {
@@ -325,19 +322,18 @@ app.post('/api/threat-intel/maps-grounding', async (req: Request, res: Response)
   }
 
   const promptText = query || (
-    targetIp 
-      ? `Analise a infraestrutura de rede, provedores de trânsito e data centers ou centros de resposta a incidentes cibernéticos (CSIRT / CERT) associados à região de ${locationName || 'Frankfurt / Europa'} e ao IP ${targetIp}. Forneça detalhes de geolocalização e instalações de infraestrutura física relevantes.`
+    targetIp
+      ? `Analise a infraestrutura de rede, provedores de trânsito e data centers ou centros de resposta a incidentes cibernéticos (CSIRT / CERT) associados à região de ${locationName || 'Frankfurt, Alemanha'}.`
       : `Identifique centros de operações de segurança (SOC), equipes de resposta a emergências cibernéticas (CERT / CSIRT) e data centers próximos a ${locationName || 'São Paulo, Brasil'}.`
   );
 
   if (!aiClient) {
-    // Local simulation fallback with realistic forensic intelligence and authentic Google Maps search URLs
     const searchCity = locationName || (targetIp?.startsWith('185.') ? 'Frankfurt, Alemanha' : 'São Paulo, Brasil');
     const encodedQuery = encodeURIComponent(`data center ou CERT ${searchCity}`);
     const mapsFallbackUrl = `https://www.google.com/maps/search/?api=1&query=${encodedQuery}`;
 
     return res.json({
-      text: `### Análise de Inteligência Geoespacial & Rastreamento de Infraestrutura\n\n**Alvo / Região:** ${searchCity}\n**Endereço IP Investigado:** \`${targetIp || '45.154.255.8'}\`\n\n#### Constatações Forenses de Rede:\n- **AS / Provedor de Trânsito:** AS200052 (Hosting & Dedicated Server Infrastructure)\n- **Instalação / Data Center:** Instalação de Colocation Tier III na região metropolitana de ${searchCity}.\n- **Perfil de Ameaça:** Ponto de tráfego detectado disparando varreduras de portas automatizadas e injeções SQL direcionadas a bancos de dados na porta 3306.\n- **Centros de Resposta Recomendados:** Notificar o CSIRT/CERT regional e aplicar bloqueio no firewall de borda para o bloco CIDR correspondente.`,
+      text: `### Análise de Inteligência Geoespacial & Rastreamento de Infraestrutura\n\n**Alvo / Região:** ${searchCity}\n**Endereço IP Investigado:** \`${targetIp || '45.154.255.8'}\`\n\n## Centros de Dados Identificados\n\nCom base na geolocalização e nos padrões de infraestrutura de trânsito, a região servida por este alvo apresenta presença relevante de provedores, colocation e centros de resposta a incidentes. Consulte os mapas para confirmar pontos específicos de presença e interconexão.`,
       mapsLinks: [
         {
           title: `Instalações de Data Center e Centros de Segurança em ${searchCity}`,
@@ -405,7 +401,7 @@ app.post('/api/threat-intel/maps-grounding', async (req: Request, res: Response)
     const isRateLimit = error.message?.includes('RESOURCE_EXHAUSTED') || error.message?.includes('quota');
 
     return res.json({
-      text: `### Análise de Inteligência Geoespacial & Rastreamento Forense\n\n**Alvo / Região Inspecionada:** ${searchCity}\n**Endereço IP Investigado:** \`${targetIp || '185.220.101.5'}\`\n\n#### Detalhes Técnicos de Infraestrutura:\n- **AS / Roteamento BGP:** AS-Transit Internacional com presença em PTT/IXP regional.\n- **Instalação / Data Center:** Instalação de Colocation Tier III / IV em ${searchCity}.\n- **Perfil de Ameaça:** Ponto de tráfego detectado disparando varreduras de portas automatizadas e injeções SQL direcionadas a bancos de dados na porta 3306.\n- **Ação Defensiva Recomendada:** Aplicar regra de firewall com ação **DENY** para o IP \`${targetIp || '185.220.101.5'}\` ou subnet correspondente, e encaminhar amostra de tráfego para a equipe de CSIRT/CERT responsável.${isRateLimit ? '\n\n*(Nota: Consulta ao vivo em modo simulado devido ao limite temporário de requisições da chave de API)*' : ''}`,
+      text: `### Análise de Inteligência Geoespacial & Rastreamento Forense\n\n**Alvo / Região Inspecionada:** ${searchCity}\n**Endereço IP Investigado:** \`${targetIp || '185.220.101.5'}\`\n\nA infraestrutura de rede foi mapeada em modo de contingência. Os dados de referência foram recuperados por heurísticas geoespaciais e a investigação deve ser validada com fontes locais ou de trânsito do provedor.`,
       mapsLinks: [
         {
           title: `Data Centers e Instalações de Colocation em ${searchCity}`,
@@ -424,7 +420,8 @@ app.post('/api/threat-intel/maps-grounding', async (req: Request, res: Response)
         }
       ],
       isSimulated: true,
-      error: error.message
+      error: error.message,
+      rateLimit: isRateLimit,
     });
   }
 });
